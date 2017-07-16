@@ -90,7 +90,7 @@ NSString * const SWHttpTrafficRecorderErrorDomain           = @"RECORDER_ERROR_D
         } else {
             self.recordingPath = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES)[0];
         }
-
+        
         self.fileNo = 0;
         self.runTimeStamp = (NSUInteger)[NSDate timeIntervalSinceReferenceDate];
     }
@@ -103,7 +103,7 @@ NSString * const SWHttpTrafficRecorderErrorDomain           = @"RECORDER_ERROR_D
     else {
         [NSURLProtocol registerClass:[SWRecordingProtocol class]];
     }
-
+    
     self.isRecording = YES;
     
     return YES;
@@ -279,7 +279,7 @@ static NSString * const SWRecordingLProtocolHandledKey = @"SWRecordingLProtocolH
     if(!fileName || [self isNotValidFileName: fileName]){
         fileName = @"Mocktail";
     }
-
+    
     fileName = [NSString stringWithFormat:@"%@_%lu_%d", fileName, (unsigned long)[SWHttpTrafficRecorder sharedRecorder].runTimeStamp, [[SWHttpTrafficRecorder sharedRecorder] increaseFileNo]];
     
     fileName = [fileName stringByAppendingPathExtension:[self getFileExtension:request response:response]];
@@ -299,7 +299,7 @@ static NSString * const SWRecordingLProtocolHandledKey = @"SWRecordingLProtocolH
 -(NSString *)getFilePath:(NSURLRequest *)request response:(NSHTTPURLResponse *)response{
     NSString *recordingPath = [SWHttpTrafficRecorder sharedRecorder].recordingPath;
     NSString *filePath = [recordingPath stringByAppendingPathComponent:[self getFileName:request response:response]];
-
+    
     return filePath;
 }
 
@@ -387,10 +387,15 @@ static NSString * const SWRecordingLProtocolHandledKey = @"SWRecordingLProtocolH
     [tail appendFormat:@"%@\n", request.HTTPMethod];
     [tail appendFormat:@"%@\n", [self getURLRegexPattern:request]];
     [tail appendFormat:@"%ld\n", (long)response.statusCode];
+    // TODO add base64 in the Content-Type directly
     [tail appendFormat:@"%@%@\n", response.MIMEType, [self toBase64Body:request andResponse:response] ? @";base64": @""];
     NSEnumerator *headerKeys = [response.allHeaderFields keyEnumerator];
     for (NSString *key in headerKeys) {
-        [tail appendFormat:@"%@: %@\n", key, (NSString*)[response.allHeaderFields objectForKey:key]];
+        NSString *value = (NSString*)[response.allHeaderFields objectForKey:key];
+        if ([key isEqualToString:@"Content-Type"] && [self toBase64Body:request andResponse:response]) {
+            value = [value stringByAppendingString:@";base64"];
+        }
+        [tail appendFormat:@"%@: %@\n", key, value];
     }
     
     [tail appendString:@"\n"];
@@ -462,7 +467,7 @@ static NSString * const SWRecordingLProtocolHandledKey = @"SWRecordingLProtocolH
     NSMutableString *dataString = NSMutableString.new;
     
     [dataString appendFormat:@"%@\n", [self statusLineFromResponse:response]];
-     
+    
     NSDictionary *headers = response.allHeaderFields;
     for(NSString *key in headers){
         [dataString appendFormat:@"%@: %@\n", key, headers[key]];
@@ -492,7 +497,7 @@ static NSString * const SWRecordingLProtocolHandledKey = @"SWRecordingLProtocolH
     return statusLine;
 }
 
-#pragma mark - Recording Progress 
+#pragma mark - Recording Progress
 
 + (void)updateRecorderProgressDelegate:(SWHTTPTrafficRecordingProgressKind)progress userInfo:(NSDictionary *)info{
     SWHttpTrafficRecorder *recorder = [SWHttpTrafficRecorder sharedRecorder];
